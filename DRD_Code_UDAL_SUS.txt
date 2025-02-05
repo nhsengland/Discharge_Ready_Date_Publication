@@ -1,0 +1,1434 @@
+----------------------------------------------------
+/*Modify the Discharge Start and End dates below. 
+This should cover the reporting month period*/
+----------------------------------------------------
+DECLARE
+  @DischargeStart DATE,
+  @DischargeEnd   DATE
+  SET @DischargeStart = '20241201'
+  SET @DischargeEnd = '20241231'
+------------------------------------------------------
+IF OBJECT_ID('tempdb..#Discharges') IS NOT NULL
+    DROP TABLE #Discharges
+IF OBJECT_ID('tempdb..#Check_1') IS NOT NULL
+    DROP TABLE #Check_1
+IF OBJECT_ID('tempdb..#Check_2') IS NOT NULL
+    DROP TABLE #Check_2
+IF OBJECT_ID('tempdb..#Check_3') IS NOT NULL
+    DROP TABLE #Check_3
+IF OBJECT_ID('tempdb..#Check_4') IS NOT NULL
+    DROP TABLE #Check_4
+IF OBJECT_ID('tempdb..#Data_tab') IS NOT NULL
+    DROP TABLE #Data_tab
+/*************************************************************************/
+--------------------------------Discharges--------------------------------
+--The total number of discharges broken by provider
+/*************************************************************************/
+SELECT
+Provider_Current
+,Organisation_Name
+, SUM(Total) AS Sum_of_Total
+INTO #Discharges
+FROM(
+	SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+-- EXCLUDE Patients under 16 years old
+AND Der_Spell_LoS > 0
+-- EXCLUDE patients with a 0 day Length of Stay
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+-- EXCLUDE patients with the following admission methods
+--31 - Maternity Admission: Admitted ante partum
+--32 - Maternity Admission: Admitted post partum
+--82 - Other Admission: The birth of a baby in this Health Care Provider
+--83 - Other Admission: Baby born outside the Health Care Provider except when born at home as intended
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+--EXCLUDE where the Treatment Function groups do not equal "Specific Acute"
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+--Discharge destination representing those who die in hospital and those transferred to other hospitals/hospices (discharge destination codes 51, 52, 87, 88, 79 or method of discharge 4, 5)
+--EXCLUDE records where the Discharge Destinations  = Hospital Transfer, Died in Hospital, Hospice
+--Discharge destination codes
+--INCLUDED - Criminal Justice System
+--37 = Court 
+--38 = Penal establishment or police station
+--40 = Penal establishment
+--42 = Police Station / Police Custody Suite
+--EXCLUDED - Hospice
+--'88' = Non-NHS (other than Local Authority) run Hospice
+--EXCLUDED - Died in Hospital
+--4 = PATIENT died (Discharge Method)
+--5 = Stillbirth (Discharge Method)
+--79 = Not applicable - PATIENT died or stillbirth
+--INCLUDED - Usual Place of Residence
+--19 = Then Usual place of residence unless listed below, for example, a private dwelling whether owner occupied or owned by Local Authority, housing association or other landlord. 
+--This includes wardened accommodation but not residential accommodation where health care is provided. It also includes PATIENTS with no fixed abode.
+--INCLUDED - Temporary Accommodation
+--29 = Then Temporary place of residence when usually resident elsewhere (includes hotel, residential Educational Establishment)
+--INCLUDED - MH & LD Facility
+--30 = Repatriation from high security psychiatric accommodation in an NHS Hospital Provider (NHS Trust  or NHS Foundation Trust)
+--48 = High Security Psychiatric Hospital, Scotland
+--49 = NHS other Hospital Provider - high security psychiatric accommodation
+--50 = NHS other Hospital Provider - medium secure unit
+--53 = NHS other Hospital Provider - WARD for PATIENTS who are mentally ill or have Learning Disabilities)
+--EXCLUDED - Hospital Transfer
+--51 = NHS other Hospital Provider - WARD for general PATIENTS or the younger physically disabled
+--52 = NHS other Hospital Provider - WARD for maternity PATIENTS or Neonates
+--87 = Non-NHS run hospital
+--89 = ORGANISATION  responsible for forced repatriation
+--INCLUDED - Residential/Nursing Home
+--54 = NHS run Care Home 
+--55 = Care Home Services with Nursing
+--56 = Care Home Services without Nursing
+--65 = Local Authority residential accommodation i.e. where care is provided
+--66 = Local Authority foster care
+--84 = Non-NHS run hospital - medium secure unit
+--85 = Non-NHS (other than Local Authority) run Care Home
+--INCLUDED - Else 'Not Known'
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+-- EXCLUDE records where the Dervied Management Type is  'Day Case' or 'Regular Day/Night'
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+GROUP BY 
+	Provider_Current 
+	, Organisation_Name
+/*************************************************************************/
+--------------------------------Check 1------------------------------------
+--Proportion of discharges where DRD is equal to discharge data
+--Where this is equal to 100%, this is regarded as implausible
+/*************************************************************************/
+SELECT
+*
+, SUM(DRD_DATE_MATCH+DRD_DATE_NULL)*1.0/SUM(Sum_of_Total)*1.0*100 AS 'Check'
+, CASE WHEN SUM(DRD_DATE_MATCH+DRD_DATE_NULL)*1.0/SUM(Sum_of_Total)*1.0*100 = 100 THEN 'Implausible'
+	   ELSE 'OK' END AS 'Status'
+INTO #Check_1
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, SUM(CASE WHEN Discharge_Ready_Date <> Discharge_Date AND Discharge_Ready_Date IS NOT NULL THEN Total ELSE 0 END) AS DRD
+	, SUM(CASE WHEN Discharge_Ready_Date = Discharge_Date THEN Total ELSE 0 END) AS DRD_DATE_MATCH
+	, SUM(CASE WHEN Discharge_Ready_Date IS NULL THEN Total ELSE 0 END) AS DRD_DATE_NULL
+	, SUM(Total) AS Sum_of_Total
+FROM(
+SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+GROUP BY 
+	Provider_Current
+	,Organisation_Name)_
+GROUP BY
+	Provider_Current
+	,Organisation_Name
+	, DRD
+	, DRD_DATE_MATCH
+	, DRD_DATE_NULL
+	, Sum_of_Total
+/*************************************************************************/
+--------------------------------Check 2------------------------------------
+--Proportion of discharges where DRD is impossible, ie. It is 
+--either before admission or after discharge. Where this is over 5%, this 
+--is regarded as implausible
+/*************************************************************************/
+SELECT
+*
+, (DRD_IMPOSSIBLE)*1.0/(Sum_of_Total)*1.0 AS 'Check'
+, CASE WHEN (DRD_IMPOSSIBLE)*1.0/(Sum_of_Total)*1.0*100 > 5 THEN 'Implausible'
+	   ELSE 'OK' END AS 'Status'
+	   INTO #Check_2
+FROM(
+	SELECT
+	Provider_Current
+	,Organisation_Name
+	, SUM(Total) - SUM(CASE WHEN (Discharge_Ready_Date < Admission_Date) OR (Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL) OR (Discharge_Ready_Date > Discharge_Date) OR (Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL) THEN Total ELSE 0 END) AS DRD
+	, SUM(CASE WHEN (Discharge_Ready_Date < Admission_Date) OR (Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL) OR (Discharge_Ready_Date > Discharge_Date) OR (Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL) THEN Total ELSE 0 END) AS DRD_IMPOSSIBLE
+	, SUM(Total) AS Sum_of_Total
+FROM(
+		SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+GROUP BY 
+	Provider_Current
+	,Organisation_Name)_
+GROUP BY
+	Provider_Current
+	, Organisation_Name
+	, DRD
+	, DRD_IMPOSSIBLE
+	, Sum_of_Total
+/*************************************************************************/
+--------------------------------Check 3------------------------------------
+--Average delay (in days), for those with delays of at least 1 day. 
+--This is the difference between DRD and the discharge date. Where this
+--is less than 2, or greater than 30, this is regarded as implausible
+/*************************************************************************/
+SELECT DISTINCT
+Provider_Current
+, Organisation_Name
+, [Check]
+, [Status]
+INTO #Check_3
+FROM(
+SELECT 
+T1.Provider_Current
+, T1.Organisation_Name
+, T2.Discharge_Delay
+, T2.Sum_of_Total
+, T2.Total_Delays
+, T1.[Check]
+, CASE WHEN T1.[Check] <2 THEN 'Implausible'
+	   WHEN T1.[Check] >30 THEN 'Implausible'
+	   ELSE 'OK' END AS 'Status' 
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, SUM(Total_Delays)*1.0/SUM(Sum_of_Total)*1.0 AS 'Check'
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, CASE 
+		WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END AS Discharge_Delay
+	, SUM(Total) AS Sum_of_Total
+	, CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END * SUM(Total) AS 'Total_Delays'
+FROM(
+	SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+AND
+(CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END <>0 AND
+		CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END IS NOT NULL) 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+WHERE Length_of_Stay > '0' 
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END)_
+GROUP BY 
+	Provider_Current
+	, Organisation_Name) T1
+LEFT JOIN
+(SELECT
+Provider_Current
+, Organisation_Name
+, CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END AS Discharge_Delay
+, SUM(Total) AS Sum_of_Total
+,CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END * SUM(Total) AS 'Total_Delays'
+FROM(
+		SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+AND
+(CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END <>0 AND
+		CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END IS NOT NULL) 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+WHERE Length_of_Stay > '0' AND
+(Discharge_Ready_Date < Admission_Date OR
+		DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0  OR
+		Discharge_Ready_Date > Discharge_Date OR
+		(Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL) OR
+		(Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL) OR
+		DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) <> 0 OR
+		DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) IS NOT NULL)
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, CASE WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+				END) T2
+ON T1.Provider_Current = T2.Provider_Current
+)_
+/*************************************************************************/
+--------------------------------Check 4------------------------------------
+--The proportion of bed days that occurred after the DRD. Where this is 
+--less than 2.5%, or greater than 60%, this is regarded as implausible.
+/*************************************************************************/
+SELECT DISTINCT
+Provider_Current
+, Organisation_Name
+, [Check]
+, [Status]
+INTO #Check_4
+FROM(
+SELECT 
+T1.Provider_Current
+, T1.Organisation_Name
+, T2.Length_of_Stay
+, T2.Discharge_Delay
+, T2.Sum_of_Total
+, T2.Total_Delays
+, T2.[Total Delayed Days]
+, T1.[Check]
+, CASE WHEN T1.[Check] BETWEEN .025 AND .60 THEN 'OK' ELSE 'Implausible' END AS 'Status'
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, SUM(Total_Delayed_Days)*1.0/sum(Total_Delays)*1.0 as 'Check'
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, Discharge_Delay_v3 AS 'Discharge_Delay'
+	, SUM(Sum_of_Total) AS Sum_of_Total
+	, SUM(Total_Delays) AS Total_Delays
+	, SUM(Discharge_Delay_v2*Sum_of_Total) AS 'Total_Delayed_Days'
+FROM(
+SELECT 
+	*
+	, Length_of_Stay*Sum_of_Total AS 'Total_Delays'
+	, Discharge_Delay_v2*Sum_of_Total AS 'Total_Delayed_Days'
+FROM(
+SELECT
+	Provider_Current
+	, Organisation_Name
+	, CAST(Length_of_Stay AS numeric) AS Length_of_Stay
+	, CASE 
+		WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date)  END AS Discharge_Delay_v2
+	, CASE 
+		WHEN Discharge_Ready_Date IS NULL THEN 'DRD NULL' 
+		WHEN CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) < 0 THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date < Admission_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN 'DRD Impossible'
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN 'DRD Impossible'  
+			ELSE CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) END  AS Discharge_Delay_v3
+	, SUM(Total) AS Sum_of_Total
+FROM(
+	SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+WHERE Length_of_Stay > '0'
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+	, CASE 
+		WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date)  END 
+	, CASE 
+		WHEN Discharge_Ready_Date IS NULL THEN 'DRD NULL' 
+		WHEN CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) < 0 THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date < Admission_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN 'DRD Impossible'  
+			ELSE CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) END )_)_
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, Discharge_Delay_v3 )_
+GROUP BY 
+	Provider_Current
+	, Organisation_Name) T1
+LEFT JOIN
+(SELECT
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, Discharge_Delay_v3 AS 'Discharge_Delay'
+	, SUM(Sum_of_Total) AS Sum_of_Total
+	, SUM(Total_Delays) AS Total_Delays
+	, SUM(Discharge_Delay_v2*Sum_of_Total) AS 'Total Delayed Days'
+FROM(
+	SELECT 
+	*
+	, Length_of_Stay*Sum_of_Total AS 'Total_Delays'
+	, Discharge_Delay_v2*Sum_of_Total AS 'Total_Delayed_Days'
+FROM(
+	SELECT
+	Provider_Current
+	, Organisation_Name
+	, CAST(Length_of_Stay AS numeric) AS Length_of_Stay
+	, DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS Discharge_Delay
+	, CASE 
+		WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date)  END AS Discharge_Delay_v2
+	, CASE 
+		WHEN Discharge_Ready_Date IS NULL THEN 'DRD NULL' 
+		WHEN CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) < 0 THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date < Admission_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN 'DRD Impossible'
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN 'DRD Impossible'  
+			ELSE CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) END  AS Discharge_Delay_v3
+	, SUM(Total) AS Sum_of_Total
+FROM(
+		SELECT
+Age_Group 
+,Provider_Current 
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FROM
+(
+SELECT
+CASE 
+WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+ELSE '65 years +' 
+END AS Age_Group
+,CASE
+WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+ELSE'Not Known' --Included in filters below
+END AS Discharge_Destination
+,CASE 
+WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+ELSE 'Unclassified Admission' 
+END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,r.Organisation_Name
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+                                                                   
+---------------------------------------------------------------------------------------------------------------------------------------
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+---------------------------------------------------------------------------------------------------------------------------------------
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+AND Der_Spell_LoS > 0
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+) b
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+---------------------------------------------------------------------------------------------------------------------------------------
+GROUP BY 
+Age_Group 
+,Provider_Current
+,Organisation_Name
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_
+	WHERE Length_of_Stay > '0'
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) 
+	, CASE 
+		WHEN Discharge_Ready_Date < Admission_Date THEN NULL
+		WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) < 0 THEN NULL 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN NULL 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN NULL 
+			ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date)  END 
+	, CASE 
+		WHEN Discharge_Ready_Date IS NULL THEN 'DRD NULL' 
+		WHEN CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) < 0 THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date < Admission_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date > Discharge_Date THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Discharge_Date IS NULL THEN 'DRD Impossible' 
+		WHEN Discharge_Ready_Date IS NOT NULL AND Admission_Date IS NULL THEN 'DRD Impossible'  
+			ELSE CAST(DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) AS nvarchar) END  )_)_
+GROUP BY 
+	Provider_Current
+	, Organisation_Name
+	, Length_of_Stay
+	, Discharge_Delay_v3 ) T2
+ON T1.Provider_Current = T2.Provider_Current
+)_
+/*************************************************************************/
+-------------------------------Data------------------------------------
+--Produces the calcs/output for the 'Data' tab
+/*************************************************************************/
+SELECT 
+A.Age_Group
+,A.Provider_Current
+,A.Site_Current
+,A.UTLA_Code
+,A.UTLA_Name
+,A.Admission_Date
+,A.Discharge_Date
+,A.Length_of_Stay
+,A.Discharge_Ready_Date
+,A.Total
+,A.Discharge_Delay
+,A.DRD_Status
+,CASE WHEN B.[Status] = 'OK' AND C.[Status] = 'OK' AND D.[Status] = 'OK' AND E.[Status] = 'OK' 
+	THEN 'Y' 
+WHEN A.Provider_Current IN('RGM','RAN','RP6','RX1','RCU','RBQ','RBS','REP','RBV','RPC','RRJ','RL1','RQ3','RP4','RET')
+	THEN 'Y'
+		ELSE 'N' 
+			END AS 'Acceptable_Criteria_month'
+,A.Region_Code
+,A.Region_Name
+,A.STP_Code
+,A.STP_Name
+,A.Organisation_Name
+,A.Discharge_Month
+,A.Discharge_Month_Number
+,A.DRD_equal_to_discharge_date_NULL
+,A.DRD_equal_to_discharge_date_DATE
+,A.DRD_later_than_Discharge_or_before_Admission
+,A.LOS_Days
+,A.Discharge_Delay*A.Total AS Delayed_Days
+INTO #Data_tab
+FROM
+(
+(SELECT
+Age_Group 
+,Provider_Current 
+,Site_Current
+,UTLA_Code
+,UTLA_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Total
+,CASE WHEN Discharge_Ready_Date IS NULL THEN 'DRD NULL'
+	   WHEN Discharge_Ready_Date < Admission_Date OR Admission_Date IS NULL THEN 'DRD Impossible'
+	   WHEN Discharge_Ready_Date > Discharge_Date OR Discharge_Date IS NULL THEN 'DRD Impossible'
+	   ELSE 'DRD Valid' END AS DRD_Status
+,CASE WHEN DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) <0 THEN NULL
+	WHEN Discharge_Ready_Date < Admission_Date OR Admission_Date IS NULL THEN NULL
+	WHEN Discharge_Ready_Date > Discharge_Date OR Discharge_Date IS NULL THEN NULL
+	ELSE DATEDIFF(DAY,Discharge_Ready_Date,Discharge_Date) END AS Discharge_Delay
+, Region_Code
+, Region_Name
+, STP_Code
+, STP_Name
+, Organisation_Name
+, DATEADD(DAY,1,EOMONTH(Discharge_Date,-1)) AS Discharge_Month
+, MONTH(Discharge_Date) AS Discharge_Month_Number
+, CASE WHEN Discharge_Ready_Date IS NULL THEN 'DRD=DD'
+	   ELSE '' END AS DRD_equal_to_discharge_date_NULL
+, CASE WHEN Discharge_Ready_Date = Discharge_Date THEN 'DRD=DD'
+	   ELSE '' END AS DRD_equal_to_discharge_date_DATE
+, CASE WHEN Discharge_Ready_Date IS NULL THEN ''
+	   WHEN Discharge_Ready_Date < Admission_Date OR Admission_Date IS NULL THEN 'DRD Impossible'
+	   WHEN Discharge_Ready_Date > Discharge_Date OR Discharge_Date IS NULL THEN 'DRD Impossible'
+	   ELSE '' END AS DRD_later_than_Discharge_or_before_Admission
+, Length_of_Stay*Total AS LOS_Days
+
+FROM(
+SELECT
+Age_Group 
+,Provider_Current 
+,Site_Current
+,UTLA_Code
+,UTLA_Name
+,Region_Code
+,Region_Name
+,STP_Code
+,STP_Name
+,Organisation_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date
+,Count(1) as Total
+-------------------------------------
+FROM
+(
+SELECT
+CASE 
+	WHEN Age_At_End_of_Spell_SUS between 0 and 15 THEN '00 to 15 years' --Excluded in filters below
+	WHEN Age_At_End_of_Spell_SUS between 16 and 17 THEN '16 to 17 years' 
+	WHEN Age_At_End_of_Spell_SUS between 18 and 64 THEN '18 to 64 years' 
+	ELSE '65 years +' 
+	END AS Age_Group
+,CASE
+	WHEN Discharge_Method IN('4', '04', '5', '05')THEN'Died in Hospital'--Excluded in filters below
+	WHEN Discharge_Destination = '79'THEN'Died in Hospital'--Excluded in filters below
+	WHEN Discharge_Destination IN('51', '52', '87')THEN'Hospital Transfer'--Excluded in filters below
+	WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
+	WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
+	WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
+	WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
+	WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+	WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
+	ELSE'Not Known' --Included in filters below
+	END AS Discharge_Destination
+,CASE 
+	WHEN Admission_Method IN ('21','22','23','24','25','28','2A','2B','2C','2D') THEN 'Emergency Admission'
+	WHEN Admission_Method IN ('31','32','81','82','83','84','89') THEN 'Other Non-elective Admission'
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Regular Day/Night Attender'                                                                 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '3' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 1 THEN 'Regular Day/Night Attender'                                                                 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '4' AND DATEDIFF(DAY,Admission_Date,Discharge_Date) > 1 THEN 'Ord. Elective Admission'
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IN('3', '4', '5', '8', '9') THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '1' AND Intended_Management IS NULL THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IN('3', '4', '5', '8', '9') AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification = '2' AND Intended_Management IS NULL AND DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IN('1', '2', '5') AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '1' THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) <= 0 THEN 'Day Case' 
+	WHEN Admission_Method IN ('11','12','13') AND Patient_Classification IS NULL AND Intended_Management = '2' AND  DATEDIFF(DAY,Admission_Date,Discharge_Date) > 0 THEN 'Ord. Elective Admission'          
+	ELSE 'Unclassified Admission' 
+	END AS Mgmt_Group
+,Der_Provider_Code AS Provider_Current
+,Der_Provider_Site_Code AS Site_Current
+,Discharge_Date
+,UTLA.UTLA23CD AS UTLA_Code
+,UTLA.UTLA23NM AS UTLA_Name 
+,Discharge_Destination AS Discharge_Destination_raw
+,Discharge_Method AS Discharge_Method_raw
+,Discharge_Ready_Date
+,Admission_Date
+,Der_Spell_LoS AS Length_of_Stay
+--,Count(1) AS Total
+,r.Region_Code
+,r.Region_Name
+,r.STP_Code
+,r.STP_Name
+,r.Organisation_Name
+FROM 
+[Reporting_MESH_APC].[APCS_Core_Union] a 
+LEFT JOIN [Internal_Reference].[DRD_LSOA11_LSOA21_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
+WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
+AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
+'RBT', 'RBV', 'RC9', 'RCB', 'RCD', 'RCF', 'RCU', 'RCX', 'RD1', 'RD8', 'RDE', 'RDU', 'REF', 'REM', 'REN', 'REP', 'RET', 'RF4', 'RFF', 'RFR', 'RFS', 'RGM', 'RGN', 'RGP', 'RGR', 
+'RGT', 'RH5', 'RH8', 'RHM', 'RHQ', 'RHU', 'RHW', 'RJ1', 'RJ2', 'RJ6', 'RJ7', 'RJC', 'RJE', 'RJL', 'RJN', 'RJR', 'RJZ', 'RK5', 'RK9', 'RKB', 'RKE', 'RL1', 'RL4', 'RLQ', 'RLT',
+'RM1', 'RM3', 'RMC', 'RMP', 'RN3', 'RN5', 'RN7', 'RNA', 'RNN', 'RNQ', 'RNS', 'RNZ', 'RP4', 'RP5', 'RP6', 'RPA', 'RPC', 'RPY', 'RQ3', 'RQM', 'RQW', 'RQX', 'RR7', 'RR8', 'RRF', 
+'RRJ', 'RRK', 'RRV', 'RTD', 'RTE', 'RTF', 'RTG', 'RTH', 'RTK', 'RTP', 'RTR', 'RTX', 'RVJ', 'RVR', 'RVV', 'RVW', 'RWA', 'RWD', 'RWE', 'RWF', 'RWG', 'RWH', 'RWJ', 'RWP', 'RWW', 
+'RWY', 'RX1', 'RXC', 'RXF', 'RXK', 'RXL', 'RXN', 'RXP', 'RXQ', 'RXR', 'RXW', 'RYJ', 'RYR') 
+
+AND Age_At_End_of_Spell_SUS BETWEEN '16' AND '120'
+
+AND Der_Spell_LoS > 0
+
+AND Admission_Method IN ('11','12','13','21','22','23','24','25','28','2A','2B','2C','2D','81','84', '89', '98', '99')
+
+AND Der_Dischg_Treatment_Function_Code IN ('100','101','102','103','104','105','106','107','108','109','110','111','113','115','120','130','140','141','142','143','144','145',
+'150','160','161','170','171','172','173','174','180','190','191','192','200','211','212','213','214','215','216','217','218','219','220','221','222','230','240','241','242','250',
+'251','252','253','254','255','256','257','258','259','260','261','262','263','264','270','280','300','301','302','303','304','305','306','307','308','309','310','311','313','314',
+'315','316','317','318','319','320','321','322','323','324','325','326','327','328','329','330','333','335','340','341','342','343','347','348','350','352','361','370','371','400',
+'401','410','420','421','422','430','431','450','451','460','461','502','503','505','663','670','673','675','677','800','811','812','822','834')
+
+) b
+
+--xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+WHERE
+Discharge_Destination IN ('Criminal Justice System', 'MH & LD Facility', 'Residential/Nursing Home', 'Usual Place of Residence', 'Not Known', 'Temporary Accommodation')
+
+AND Mgmt_Group IN ('Other Non-elective Admission', 'Emergency Admission', 'Ord. Elective Admission', 'Unclassified Admission') 
+
+
+GROUP BY  
+Age_Group 
+,Provider_Current 
+,Site_Current
+,UTLA_Code
+,UTLA_Name
+,Region_Code
+,Region_Name
+,STP_Code
+,STP_Name
+,Organisation_Name
+,Admission_Date
+,Discharge_Date
+,Length_of_Stay
+,Discharge_Ready_Date)_ ) A
+
+LEFT JOIN
+
+(SELECT DISTINCT 
+	Provider_Current
+	,[Status]
+	FROM #Check_1) B
+
+ON A.Provider_Current = B.Provider_Current
+
+LEFT JOIN
+
+(SELECT DISTINCT 
+	Provider_Current
+	,[Status]
+	FROM #Check_2) C
+
+ON A.Provider_Current = C.Provider_Current
+
+LEFT JOIN
+
+(SELECT DISTINCT 
+	Provider_Current
+	,[Status]
+	FROM #Check_3) D
+
+ON A.Provider_Current = D.Provider_Current
+
+LEFT JOIN
+
+(SELECT DISTINCT 
+	Provider_Current
+	,[Status]
+	FROM #Check_4) E
+
+ON A.Provider_Current = E.Provider_Current)/*************************************************************************/
+-------------------------------Outputs------------------------------------
+/*************************************************************************/
+SELECT * FROM #Discharges
+order by Provider_Current
+SELECT * FROM #Check_1
+order by Provider_Current 
+SELECT * FROM #Check_2
+order by Provider_Current
+SELECT * FROM #Check_3
+order by Provider_Current
+SELECT * FROM #Check_4
+order by Provider_Current 
+SELECT * FROM #Data_tab
+order by Provider_Current , Age_Group
