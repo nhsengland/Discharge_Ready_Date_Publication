@@ -1198,7 +1198,7 @@ A.Age_Group
 ,A.DRD_Status
 ,CASE WHEN B.[Status] = 'OK' AND C.[Status] = 'OK' AND D.[Status] = 'OK' AND E.[Status] = 'OK' 
 	THEN 'Y' 
-WHEN A.Provider_Current IN('RGM','RAN','RP6','RX1','RCU','RBQ','RBS','REP','RBV','RPC','RRJ','RL1','RQ3','RP4','RET')
+WHEN A.Provider_Current IN('RGM','RAN','RP6','RX1','RCU','RBQ','RBS','REP','RBV','RPC','RRJ','RL1','RQ3','RP4','RET','REN','RPY')
 	THEN 'Y'
 		ELSE 'N' 
 			END AS 'Acceptable_Criteria_month'
