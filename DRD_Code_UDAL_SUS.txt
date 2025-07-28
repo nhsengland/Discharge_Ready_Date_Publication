@@ -102,7 +102,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -280,7 +280,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -417,7 +417,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -582,7 +582,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -738,7 +738,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -943,7 +943,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -1116,7 +1116,7 @@ END AS Mgmt_Group
                                                                    
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
@@ -1334,7 +1334,7 @@ CASE
 ,r.STP_Name
 ,r.Organisation_Name
 FROM 
-[Reporting_MESH_APC].[APCS_Core_Union] a 
+[Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
 LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
