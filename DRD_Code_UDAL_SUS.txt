@@ -103,7 +103,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -281,7 +281,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -418,7 +418,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -583,7 +583,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -739,7 +739,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -944,7 +944,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -1117,7 +1117,7 @@ END AS Mgmt_Group
 ---------------------------------------------------------------------------------------------------------------------------------------
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 ---------------------------------------------------------------------------------------------------------------------------------------
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
@@ -1335,7 +1335,7 @@ CASE
 ,r.Organisation_Name
 FROM 
 [Reporting_MESH_APC].[APCS_Core_Monthly_Snapshot] a 
-LEFT JOIN [Internal_Reference].[DRD_LSOA11_UTLA] UTLA ON UTLA.LSOA11CD = Der_Postcode_LSOA_2011_Code
+LEFT JOIN [Internal_Reference].[DRD_LSOA21_UTLA_1] UTLA ON UTLA.LSOA21CD = Der_Postcode_LSOA_2021_Code
 LEFT JOIN [Reporting_UKHD_ODS].[Provider_Hierarchies_ICB] r ON Der_Provider_Code = r.Organisation_Code 
 WHERE Discharge_Date BETWEEN @DischargeStart AND @DischargeEnd
 AND Der_Provider_Code IN('R0A', 'R0B', 'R0D', 'R1F', 'R1H', 'R1K', 'RA2', 'RA7', 'RA9', 'RAE', 'RAJ', 'RAL', 'RAN', 'RAP', 'RAS', 'RAX', 'RBD', 'RBK', 'RBL', 'RBN', 'RBQ', 'RBS', 
