@@ -59,7 +59,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -237,7 +237,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -374,7 +374,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -539,7 +539,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -695,7 +695,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -900,7 +900,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -1073,7 +1073,7 @@ WHEN Discharge_Destination = '88'THEN'Hospice'--Excluded in filters below
 WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 ELSE'Not Known' --Included in filters below
 END AS Discharge_Destination
@@ -1288,7 +1288,7 @@ CASE
 	WHEN Discharge_Destination = '19'THEN'Usual Place of Residence'--Included in filters below
 	WHEN Discharge_Destination = '29'THEN'Temporary Accommodation'--Included in filters below
 	WHEN Discharge_Destination IN('30', '48', '49', '50', '53')THEN'MH & LD Facility'--Included in filters below
-	WHEN Discharge_Destination IN('54', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
+	WHEN Discharge_Destination IN('54', '55', '56', '65', '66', '84', '85')THEN'Residential/Nursing Home'--Included in filters below
 	WHEN Discharge_Destination IN('37', '38')THEN'Criminal Justice System'--Included in filters below
 	ELSE'Not Known' --Included in filters below
 	END AS Discharge_Destination
